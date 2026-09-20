@@ -19,9 +19,13 @@ out="Screenshots"
 
 photo=${1:-}
 if [ -z "$photo" ] || [ ! -f "$photo" ]; then
-	echo "Give it one of your own photographs: scripts/screenshots.sh ~/Pictures/mine.dng" >&2
+	echo "Give it one of your own photographs: scripts/screenshots.sh ~/Pictures/mine.dng [shoot-folder]" >&2
 	exit 1
 fi
+# A grid of one photograph says nothing about a library. A second argument names a folder to
+# import for that shot; without one, the library screenshot is skipped rather than filled with
+# whatever happened to be lying about.
+shoot=${2:-}
 
 swift build -c release --product SimpleRAWApp
 mkdir -p "$out"
@@ -55,8 +59,12 @@ shoot() {
 	shift
 	pkill -f "release/SimpleRAWApp" 2>/dev/null || true
 	sleep 1
-	.build/release/SimpleRAWApp -library "$stage/library" -file "$stage"/photo.* "$@" &
-	sleep 11
+	if [ "$name" = "library" ]; then
+		.build/release/SimpleRAWApp -library "$stage/library" "$@" &
+	else
+		.build/release/SimpleRAWApp -library "$stage/library" -file "$stage"/photo.* "$@" &
+	fi
+	sleep "${shoot_seconds:-11}"
 	# Nothing under the pointer: a tooltip in a screenshot is a tooltip for ever.
 	osascript -e 'tell application "System Events" to set position of mouse cursor to {5, 5}' 2>/dev/null || true
 	id=$("$stage/winid")
@@ -68,8 +76,25 @@ shoot() {
 	echo "$out/$name.jpg"
 }
 
+# The built-in "Black & white", written out: a looks panel showing a neutral photograph says
+# nothing about what a look does. `simpleraw presets` lists them; this is that one's content.
+cat > "$stage/black-and-white.json" <<'JSON'
+{
+  "blackAndWhite": { "isEnabled": true, "red": 20, "blue": -25 },
+  "curves": { "rgb": { "points": [
+    { "x": 0, "y": 0 }, { "x": 0.25, "y": 0.2 }, { "x": 0.75, "y": 0.82 }, { "x": 1, "y": 1 }
+  ] } }
+}
+JSON
+
+if [ -n "$shoot" ] && [ -d "$shoot" ]; then
+	.build/release/simpleraw import "$shoot" --library "$stage/library" >/dev/null
+	# No `-file`, so the app opens on the grid. Longer, because every cell is decoded.
+	shoot_seconds=26 shoot library
+fi
+
 shoot develop -inspector.tab light -inspector.openPanels "light=Light"
 shoot crop -crop YES
-shoot looks -inspector.tab creative -inspector.openPanels "creative=Looks"
+shoot looks -look "$stage/black-and-white.json" -inspector.tab creative -inspector.openPanels "creative=Looks"
 
 pkill -f "release/SimpleRAWApp" 2>/dev/null || true

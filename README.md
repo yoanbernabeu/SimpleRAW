@@ -33,11 +33,13 @@ second.
 
 Non-destructive. Your originals are never written to.
 
-| Looks, as thumbnails of your own photograph | Crop, rotate, straighten |
+| A look, and the others as thumbnails of your own photograph | Crop, rotate, straighten |
 |---|---|
 | ![The looks panel](Screenshots/looks.jpg) | ![The crop tool](Screenshots/crop.jpg) |
 
 ## The library
+
+![The library](Screenshots/library.jpg)
 
 Import a folder or a card (⇧⌘I) — originals are copied in, never moved, duplicates skipped.
 Ratings, flags, colour labels, keywords, albums and smart albums, and filters over all of it.
