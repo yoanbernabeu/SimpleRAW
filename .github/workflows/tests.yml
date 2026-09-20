@@ -1,0 +1,38 @@
+# The net only helps if it runs somewhere other than the machine that wrote it.
+#
+# `make test-clone` is the suite as a fresh clone sees it: the DNGs of `Samples/` are
+# git-ignored, so every test that needs a real RAW file skips itself rather than failing.
+# That is exactly what a runner has.
+#
+# The package targets macOS 15 and builds with Swift 6. Should a runner ever be older than
+# the toolchain this needs, the failure to read is "cannot find type" in the SDK, not a test:
+# pin `runs-on` to an image that carries a new enough Xcode rather than loosening the code.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the toolchain
+        run: swift --version && xcodebuild -version
+
+      # Everything that renders runs under the memory guard, here as everywhere else: a
+      # mistake in a Core Image graph can ask for hundreds of gigabytes.
+      - name: Build
+        run: make build
+
+      - name: Test as a fresh clone
+        run: make test-clone

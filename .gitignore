@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+*.xcodeproj
+xcuserdata/
+DerivedData/
+.DS_Store
+
+# RAW samples and test renders (too heavy for the repository)
+Samples/

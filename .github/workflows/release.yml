@@ -1,0 +1,85 @@
+# Builds the app and publishes it, so that installing it is one line rather than a toolchain.
+#
+# The bundle is signed ad-hoc: there is no Apple Developer certificate behind this project, so
+# a Mac that downloads it quarantines it and Gatekeeper refuses. `scripts/install.sh` is what
+# takes the quarantine flag off, and it is in the repository where it can be read before it is
+# run. Notarisation is the only thing that would make that step unnecessary, and it wants the
+# account.
+#
+# Push a tag to publish: `git tag v0.1.0 && git push origin v0.1.0`. Or run it by hand from the
+# Actions tab, which builds and attaches the bundle without making a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  app:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the toolchain
+        run: swift --version && xcodebuild -version
+
+      # The custom Core Image kernel needs Xcode's Metal toolchain, which the build treats as
+      # optional: without it the library is empty, the distortion slider is not offered, and
+      # everything else works. Which of the two this build is, is worth knowing at a glance.
+      - name: Say whether the Metal toolchain is here
+        run: |
+          if xcrun --find metal >/dev/null 2>&1; then
+            echo "Metal toolchain found: the distortion kernel is compiled in."
+          else
+            echo "::warning::No Metal toolchain on this runner — the app ships without the distortion slider."
+          fi
+
+      # The suite as a fresh clone sees it: a runner has no Samples/, and every test that
+      # needs a real RAW file skips itself. Nothing is published that did not pass.
+      - name: Test as a fresh clone
+        run: make test-clone
+
+      - name: Build the app
+        run: make app
+
+      - name: Check what it asks for
+        run: |
+          codesign --verify --deep --strict .build/SimpleRAW.app
+          codesign --display --verbose=2 .build/SimpleRAW.app 2>&1 | grep -E "flags|Signature"
+          codesign --display --entitlements - .build/SimpleRAW.app 2>/dev/null | tail -1
+
+      # Zipped with ditto, which keeps the signature: a plain `zip` loses the extended
+      # attributes it lives in, and the bundle arrives unsigned.
+      - name: Wrap it up
+        run: ditto -c -k --keepParent .build/SimpleRAW.app SimpleRAW.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimpleRAW.app
+          path: SimpleRAW.zip
+
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SimpleRAW.zip
+          body: |
+            ## Installing
+
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | sh
+            ```
+
+            Or download `SimpleRAW.zip` below, unzip it, and open it once with a right-click →
+            Open. The app is signed ad-hoc — there is no Apple Developer certificate behind
+            this project — so macOS quarantines anything downloaded and Gatekeeper refuses it
+            until that flag is taken off. That is all either of those does; the script is in
+            the repository, and it is short.
+
+            The app is sandboxed and runs under a hardened runtime with no escape entitlement:
+            it may reach the network, and the files you pick. Nothing else.
