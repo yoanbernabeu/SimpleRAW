@@ -50,9 +50,25 @@ public struct PixelProbe {
             bounds: CGRect(x: 0, y: 0, width: width, height: height),
             format: .RGBAf, colorSpace: CGColorSpace(name: CGColorSpace.linearSRGB)
         )
-        let luminances = stride(from: 0, to: pixels.count, by: 4).map { 0.2126 * pixels[$0] + 0.7152 * pixels[$0 + 1] + 0.0722 * pixels[$0 + 2] }
-        let mean = luminances.reduce(0, +) / Float(luminances.count)
-        return (luminances.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(luminances.count)).squareRoot()
+        // Spelled out, with every type said. A weighted sum of three subscripts inside a
+        // closure is a lot of overloads to weigh at once, and an older compiler than the one
+        // on this desk gives up on it — which is how this failed on a runner and nowhere else.
+        var luminances = [Float]()
+        luminances.reserveCapacity(pixels.count / 4)
+        for pixel in stride(from: 0, to: pixels.count, by: 4) {
+            let red: Float = 0.2126 * pixels[pixel]
+            let green: Float = 0.7152 * pixels[pixel + 1]
+            let blue: Float = 0.0722 * pixels[pixel + 2]
+            luminances.append(red + green + blue)
+        }
+        let count = Float(luminances.count)
+        let mean: Float = luminances.reduce(0, +) / count
+        var variance: Float = 0
+        for luminance in luminances {
+            let difference: Float = luminance - mean
+            variance += difference * difference
+        }
+        return (variance / count).squareRoot()
     }
 
     /// Solid color swatch, expressed in linear sRGB.
