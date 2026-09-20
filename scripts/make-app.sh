@@ -31,10 +31,23 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp .build/release/SimpleRAWApp "$app/Contents/MacOS/SimpleRAW"
 
 # The resource bundle carries the compiled Core Image kernels. Bare, it is found because it
-# sits next to the executable; in a wrapper it has to go where `Bundle.module` looks, which is
-# Contents/Resources. Forget it and the distortion slider disappears without a word.
-if [ -d .build/release/SimpleRAW_RawEngine.bundle ]; then
-	cp -R .build/release/SimpleRAW_RawEngine.bundle "$app/Contents/Resources/"
+# sits next to the executable; in a wrapper it goes into Contents/Resources, where the engine
+# looks first. A copy without it opens photographs and offers no distortion slider — which is
+# the engine doing what it promises, and not something to ship without noticing. So this fails
+# here, where the bundle is being built, rather than on the machine that installed it.
+bundle=".build/release/SimpleRAW_RawEngine.bundle"
+if [ ! -d "$bundle" ]; then
+	echo "No $bundle: the release build produced no resources for RawEngine." >&2
+	exit 1
+fi
+cp -R "$bundle" "$app/Contents/Resources/"
+
+# Both layouts, because both are shipped: this machine's toolchain writes Contents/Resources
+# inside the bundle, a runner's has written the library at its root.
+wrapped="$app/Contents/Resources/SimpleRAW_RawEngine.bundle"
+if [ ! -s "$wrapped/Contents/Resources/CoreImageKernels.metallib" ] &&
+	[ ! -s "$wrapped/CoreImageKernels.metallib" ]; then
+	echo "warning: no Core Image kernels in $wrapped — this app offers no distortion slider"
 fi
 
 # Looks, moods and the edits of files outside the library live in Application Support, which

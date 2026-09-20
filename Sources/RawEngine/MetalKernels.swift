@@ -13,9 +13,11 @@ import Foundation
 /// picture alone and the interface does not offer what it cannot do.
 public enum MetalKernels {
     /// The compiled library, or `nil` where the build had no compiler. Empty is the same as
-    /// missing: that is what the build script writes when it finds no `metal`.
+    /// missing: that is what the build script writes when it finds no `metal`. So is a
+    /// resource bundle that never arrived — `KernelLibrary` says where to look, and says
+    /// nothing rather than dying when the answer is nowhere.
     private static let library: Data? = {
-        guard let url = Bundle.module.url(forResource: "CoreImageKernels", withExtension: "metallib"),
+        guard let url = KernelLibrary.url(searching: KernelLibrary.searchedFolders),
               let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
         return data
     }()

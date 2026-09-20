@@ -216,8 +216,9 @@ Tests use Swift Testing (`import Testing`), not XCTest.
   executable in the bundle that ships: `scripts/make-app.sh` builds `Info.plist` and the
   entitlements from `simpleraw plist`, never from a copy, so the file types the Finder offers
   the app for are `Importer.importedTypes` itself (`AppBundleTests`). The resource bundle
-  carrying the Core Image kernels goes in `Contents/Resources`, where `Bundle.module` looks —
-  forget it and the distortion slider disappears without a word.
+  carrying the Core Image kernels goes in `Contents/Resources`, and `make-app.sh` stops if the
+  build produced none: an app that ships without it offers no distortion slider, which is the
+  engine keeping its promise and not something to find out from a user.
   - **The wrapped app is sandboxed**, hardened, with no escape entitlement, and that changes
     two things. A path carries no right to open anything, so the library is kept as a
     security-scoped bookmark (`LibraryLocation`: renewed when stale, given up when it no
@@ -303,4 +304,10 @@ Tests use Swift Testing (`import Testing`), not XCTest.
   not with the Command Line Tools alone (on recent macOS it is a downloadable component:
   `xcodebuild -downloadComponent MetalToolchain`). The build works without it — see
   `MetalKernels` — so check `MetalKernels.isAvailable` in a test before asserting on a warp.
+- **`Bundle.module` ends in `fatalError`**, and it killed the installed app: opening a
+  photograph asks `SliderSpec.all` whether this build can warp one, that read the resource
+  bundle, and a copy where the bundle was not among the three places SwiftPM's accessor knows
+  died on the main thread. Resources are found through `KernelLibrary` — a pure search, both
+  bundle layouts (`Contents/Resources` and flat, which a release runner has written), an
+  optional for an answer. A test fails on any `Bundle.module` in `Sources/`.
 - ArgumentParser rejects `--exposure -1`; negative values need `--exposure=-1`.
