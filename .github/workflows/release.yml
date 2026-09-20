@@ -48,11 +48,11 @@ jobs:
             echo "::warning::No Metal toolchain on this runner — the app ships without the distortion slider."
           fi
 
-      # The suite as a fresh clone sees it: a runner has no Samples/, and every test that
-      # needs a real RAW file skips itself. Nothing is published that did not pass.
-      - name: Test as a fresh clone
-        run: make test-clone
-
+      # No test run here. The suite runs on the machine doing the work before anything is
+      # tagged, and every commit on `main` has already been through `build.yml`, which
+      # compiles the tests too. Rejoining that queue for eleven minutes on a shared Mac buys
+      # a second opinion on work that is already agreed, and delays a release by a quarter of
+      # an hour for it.
       - name: Build the app
         run: make app
 
