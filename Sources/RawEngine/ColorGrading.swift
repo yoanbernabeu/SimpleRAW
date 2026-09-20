@@ -99,11 +99,16 @@ struct ColorGradingTransform: Sendable {
     func apply(to rgb: SIMD3<Float>) -> SIMD3<Float> {
         guard !isNeutral else { return rgb }
         let weights = Self.rangeWeights(forLuma: Double(Self.luma(rgb)), balance: balance)
-        let graded = rgb
-            + offsets[0] * Float(weights.shadows)
-            + offsets[1] * Float(weights.midtones)
-            + offsets[2] * Float(weights.highlights)
-        return simd_clamp(graded, SIMD3(repeating: 0), SIMD3(repeating: 1))
+        // Written out one range at a time, with every type said. As one expression this is
+        // three `SIMD3<Float>` multiplications and three additions with a `Float` conversion
+        // inside each, and the type checker has to consider every overload of `*` and `+`
+        // there is: it compiled here and defeated the compiler on a runner. The arithmetic is
+        // the same; only the number of candidates it has to weigh at once has changed.
+        var graded: SIMD3<Float> = rgb
+        graded += offsets[0] * Float(weights.shadows)
+        graded += offsets[1] * Float(weights.midtones)
+        graded += offsets[2] * Float(weights.highlights)
+        return simd_clamp(graded, SIMD3<Float>(repeating: 0), SIMD3<Float>(repeating: 1))
     }
 
     /// How the tonal scale is shared: shadows own black, highlights own white, midtones the
