@@ -14,22 +14,32 @@
 # choosing Open, and you should do it only for software you have reason to trust. Nothing here
 # asks for a password, and nothing is written outside the application folder.
 #
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/SimpleRAW/main/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/yoanbernabeu/SimpleRAW/main/scripts/install.sh | sh
 set -eu
 
 repository=${SIMPLERAW_REPOSITORY:-yoanbernabeu/SimpleRAW}
 app="SimpleRAW.app"
 
-destination="/Applications"
-if [ ! -w "$destination" ]; then
+# /Applications, unless the environment names somewhere else — which is how a fork, and the test
+# that runs this script for real, installs without being handed the whole machine.
+destination=${SIMPLERAW_DESTINATION:-}
+if [ -n "$destination" ]; then
+	mkdir -p "$destination"
+elif [ -w "/Applications" ]; then
+	destination="/Applications"
+else
 	destination="$HOME/Applications"
 	mkdir -p "$destination"
 	echo "No write access to /Applications; installing into $destination."
 fi
 
-echo "Looking for the latest release of $repository…"
+# Braces, because of the ellipsis: bash 3.2 in a UTF-8 locale takes the first byte of a `…` for
+# a letter and reads the name as `repository…`, which under `set -u` ends the installer here.
+echo "Looking for the latest release of ${repository}…"
+# A release asset, not any link that happens to end in SimpleRAW.zip: the release notes are the
+# README, and the README talks about the archive too.
 url=$(curl -fsSL "https://api.github.com/repos/$repository/releases/latest" \
-	| grep -o 'https://[^"]*SimpleRAW\.zip' | head -1)
+	| grep -o 'https://[^"]*/releases/download/[^"]*SimpleRAW\.zip' | head -1)
 if [ -z "$url" ]; then
 	echo "No SimpleRAW.zip in the latest release of $repository." >&2
 	exit 1
