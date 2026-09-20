@@ -32,7 +32,34 @@ public struct DevelopView: View {
         self.openFile = openFile ?? { [session] in session.open($0) }
     }
 
+    /// Split into three, and kept that way. One `body` with the picture, a dozen modifiers and
+    /// four things that can appear over it is one expression as far as the compiler is
+    /// concerned: it is slow to type-check on the toolchain here and **crashes** the one a
+    /// release behind it, while emitting the module. Three named pieces cost a reader nothing
+    /// and give the compiler three problems instead of one.
     public var body: some View {
+        picture
+            .background(Theme.canvas)
+            .tint(Theme.accent)
+            .environment(\.discreteEdit, DiscreteEdit { [session] change in session.perform(nil, change) })
+            .animation(.easeInOut(duration: 0.2), value: showsInspector)
+            // Masks and spots are added from the inspector: without it the tool would seem dead.
+            .onChange(of: session.tool) { _, tool in
+                if tool == .local || tool == .spots { showsInspector = true }
+            }
+            .toolbar { toolbar }
+            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: open(droppedItems:))
+            // Edits are saved shortly after each change; this catches the last ones on quit.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                session.flush()
+            }
+            .modifier(WhatCanAppearOverIt(session: session, exportIsPresented: exportIsPresented, errorIsPresented: errorIsPresented) { preset in
+                presentExportPanel(using: preset)
+            })
+    }
+
+    /// The canvas, its bar, and the inspector beside them.
+    private var picture: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 canvas
@@ -45,30 +72,6 @@ public struct DevelopView: View {
                 InspectorView(session: session, context: context)
                     .transition(.move(edge: .trailing))
             }
-        }
-        .background(Theme.canvas)
-        .tint(Theme.accent)
-        .environment(\.discreteEdit, DiscreteEdit { [session] change in session.perform(nil, change) })
-        .animation(.easeInOut(duration: 0.2), value: showsInspector)
-        // Masks and spots are added from the inspector: without it the tool would seem dead.
-        .onChange(of: session.tool) { _, tool in
-            if tool == .local || tool == .spots { showsInspector = true }
-        }
-        .toolbar { toolbar }
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted, perform: open(droppedItems:))
-        // Edits are saved shortly after each change; this catches the last ones on quit.
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
-            session.flush()
-        }
-        .overlay { NoticeView(text: session.notice, dismiss: session.dismissNotice) }
-        .sheet(isPresented: $session.isChoosingCopiedGroups) { CopySettingsSheet(session: session) }
-        .sheet(isPresented: exportIsPresented) {
-            ExportSheet(session: session) { preset in presentExportPanel(using: preset) }
-        }
-        .alert(session.errorTitle, isPresented: errorIsPresented) {
-            Button("OK", action: session.dismissError)
-        } message: {
-            Text(session.errorMessage ?? "")
         }
     }
 
@@ -309,5 +312,28 @@ private struct Revision: Hashable {
         hasher.combine(overlay)
         hasher.combine(triedLook)
         hasher.combine(masks)
+    }
+}
+
+/// A notice, two sheets and an alert: everything that appears over the develop view, taken out
+/// of its `body` so that the compiler sees a small expression there and a small one here.
+private struct WhatCanAppearOverIt: ViewModifier {
+    @Bindable var session: DevelopSession
+    let exportIsPresented: Binding<Bool>
+    let errorIsPresented: Binding<Bool>
+    let exportPanel: (ExportPreset) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .overlay { NoticeView(text: session.notice, dismiss: session.dismissNotice) }
+            .sheet(isPresented: $session.isChoosingCopiedGroups) { CopySettingsSheet(session: session) }
+            .sheet(isPresented: exportIsPresented) {
+                ExportSheet(session: session, export: exportPanel)
+            }
+            .alert(session.errorTitle, isPresented: errorIsPresented) {
+                Button("OK", action: session.dismissError)
+            } message: {
+                Text(session.errorMessage ?? "")
+            }
     }
 }

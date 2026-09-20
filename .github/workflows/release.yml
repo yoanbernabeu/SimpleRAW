@@ -25,6 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The newest Xcode on the image, not whatever it defaults to. The default has been a
+      # release behind, and a release behind was enough to crash the compiler on this package
+      # while emitting a module — a compiler bug, but ours to work around.
+      - name: Take the newest Xcode on the image
+        run: |
+          newest=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "Found: $(ls -d /Applications/Xcode*.app 2>/dev/null | tr '\n' ' ')"
+          if [ -n "$newest" ]; then sudo xcode-select -s "$newest"; fi
+
       - name: Show the toolchain
         run: swift --version && xcodebuild -version
 
