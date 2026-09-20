@@ -14,7 +14,7 @@ public enum AppBundle {
     public static let name = "SimpleRAW"
     public static let executable = "SimpleRAW"
     /// What a person sees in About. The build number follows it.
-    public static let version = "0.1"
+    public static let version = "0.1.0"
     public static let build = "1"
     /// The oldest macOS this is built against, kept in step with `Package.swift`.
     public static let minimumSystem = "15.0"
