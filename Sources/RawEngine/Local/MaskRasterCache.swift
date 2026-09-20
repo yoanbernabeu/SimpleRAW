@@ -13,11 +13,13 @@ import Foundation
 /// everything written before is ignored rather than shown as if it were current. Nothing sweeps
 /// the old files, and nothing needs to — a version that is no longer read is a file that is no
 /// longer opened, and the folder is small enough to be thrown away whole.
-public struct MaskRasterCache: Sendable {
+public struct MaskRasterCache {
     /// Bump when the rendering of a found mask changes.
     public static let version = 1
 
     private let folder: URL
+    /// Its own, because writing a PNG must not wait behind whatever the canvas is rendering.
+    /// Kept rather than made per call: building one costs milliseconds.
     private let context = CIContext(options: [.cacheIntermediates: false])
 
     public init(folder: URL) {

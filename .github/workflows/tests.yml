@@ -4,9 +4,12 @@
 # git-ignored, so every test that needs a real RAW file skips itself rather than failing.
 # That is exactly what a runner has.
 #
-# The package targets macOS 15 and builds with Swift 6. Should a runner ever be older than
-# the toolchain this needs, the failure to read is "cannot find type" in the SDK, not a test:
-# pin `runs-on` to an image that carries a new enough Xcode rather than loosening the code.
+# The package targets macOS 15 and builds with Swift 6, but it needs a *recent* Xcode to
+# build at all: which types Apple has marked `Sendable` changes between SDKs, and an older one
+# rejects code the newer one accepts. The runner therefore tracks the toolchain rather than the
+# deployment target. Should one ever be too old, the failure to read is "cannot find type" or
+# "non-Sendable type" in a framework, not a test: move `runs-on` forward rather than loosening
+# the code.
 name: Tests
 
 on:
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
