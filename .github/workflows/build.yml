@@ -1,0 +1,49 @@
+# Does it build somewhere other than the machine that wrote it?
+#
+# That question, and not "do the tests pass", is what a runner is for here. The suite runs on
+# the machine doing the work, in under a minute, before every commit — running it again on a
+# shared three-core Mac takes eleven minutes and says the same thing.
+#
+# What it cannot say is the interesting part. In one afternoon this caught four faults that
+# were invisible locally and every one of them was a compile: the Metal compiler refused a
+# module cache it was not allowed to write, two expressions defeated a type checker one release
+# behind, a shared `CIVector` is `Sendable` in one SDK and not the one before it, and a method
+# reference across an actor boundary crashed the compiler outright while emitting its thunk.
+# None of those is a failing test. All of them stop the build dead on someone else's machine.
+#
+# The package targets macOS 15 and needs a recent Xcode to build at all, so the runner tracks
+# the toolchain rather than the deployment target. The tests do run before a release, where
+# eleven minutes against a thing about to be published is time well spent: see `release.yml`.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # The newest Xcode on the image, not whatever it defaults to. The default has been a
+      # release behind, and a release behind was enough to crash the compiler on this package.
+      - name: Take the newest Xcode on the image
+        run: |
+          newest=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$newest" ]; then sudo xcode-select -s "$newest"; fi
+
+      - name: Show the toolchain
+        run: swift --version && xcodebuild -version
+
+      # Tests included: they are not run here, but they are code, and code that no longer
+      # compiles is exactly what this job exists to find.
+      - name: Build everything, tests included
+        run: swift build --build-tests
