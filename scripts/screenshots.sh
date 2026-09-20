@@ -32,12 +32,20 @@ cp "$photo" "$stage/photo.${photo##*.}"
 mkdir -p "$stage/library"
 
 # The window id of our own app, which is usually behind the terminal: a full-screen capture
-# would get the terminal instead.
+# would get the terminal instead. The **largest** of its windows, because a tooltip left on
+# screen is a window too, and the first one found turned out to be one — a screenshot of the
+# words "Curve, Color" and nothing else.
 cat > "$stage/winid.swift" <<'SWIFT'
 import CoreGraphics
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-for window in list where (window[kCGWindowOwnerName as String] as? String)?.contains("SimpleRAW") == true {
-    if let number = window[kCGWindowNumber as String] as? Int { print(number); break }
+let ours = list.filter { ($0[kCGWindowOwnerName as String] as? String)?.contains("SimpleRAW") == true }
+func area(_ window: [String: Any]) -> Double {
+    guard let bounds = window[kCGWindowBounds as String] as? [String: Any],
+          let width = bounds["Width"] as? Double, let height = bounds["Height"] as? Double else { return 0 }
+    return width * height
+}
+if let biggest = ours.max(by: { area($0) < area($1) }), let number = biggest[kCGWindowNumber as String] as? Int {
+    print(number)
 }
 SWIFT
 swiftc -O "$stage/winid.swift" -o "$stage/winid"
@@ -49,6 +57,8 @@ shoot() {
 	sleep 1
 	.build/release/SimpleRAWApp -library "$stage/library" -file "$stage"/photo.* "$@" &
 	sleep 11
+	# Nothing under the pointer: a tooltip in a screenshot is a tooltip for ever.
+	osascript -e 'tell application "System Events" to set position of mouse cursor to {5, 5}' 2>/dev/null || true
 	id=$("$stage/winid")
 	[ -n "$id" ] || { echo "no window for $name" >&2; return 1; }
 	screencapture -x -o -l "$id" "$stage/$name.png"

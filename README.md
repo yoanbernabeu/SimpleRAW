@@ -9,6 +9,8 @@ curl -fsSL https://raw.githubusercontent.com/yoanbernabeu/SimpleRAW/main/scripts
 
 macOS 15 or later. Free, open source, MIT.
 
+![The develop view](Screenshots/develop.jpg)
+
 ## Developing
 
 Every slider moves the photograph as you drag it. The preview is decoded at the size of your
@@ -30,6 +32,10 @@ second.
   100 % view, soft proofing against a paper profile.
 
 Non-destructive. Your originals are never written to.
+
+| Looks, as thumbnails of your own photograph | Crop, rotate, straighten |
+|---|---|
+| ![The looks panel](Screenshots/looks.jpg) | ![The crop tool](Screenshots/crop.jpg) |
 
 ## The library
 
