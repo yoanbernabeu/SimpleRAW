@@ -25,11 +25,7 @@ enum Rec709 {
     static let weights = SIMD3<Float>(Float(red), Float(green), Float(blue))
     /// The same, as the row of a color matrix.
     ///
-    /// `nonisolated(unsafe)` because a `CIVector` is not marked `Sendable` in every SDK this
-    /// builds against, and one shared here would be an error on the older of them. It is a
-    /// constant that nothing can change: the class is immutable, and this is a `let` read by
-    /// filters and never written.
-    nonisolated(unsafe) static let vector = CIVector(x: red, y: green, z: blue, w: 0)
+    static let vector = CIVector(x: red, y: green, z: blue, w: 0)
 
     static func luma(_ rgb: SIMD3<Float>) -> Float {
         (rgb * weights).sum()

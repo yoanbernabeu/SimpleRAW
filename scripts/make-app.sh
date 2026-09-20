@@ -19,7 +19,11 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 app=".build/SimpleRAW.app"
 
-swift build -c release --product SimpleRAWApp --product simpleraw
+# One at a time: `swift build` keeps only the last `--product` it is given, so asking for two
+# in one command silently builds one of them. Here that left the app unbuilt and the copy
+# below failing, and it went unnoticed because a previous build had left the binary behind.
+swift build -c release --product SimpleRAWApp
+swift build -c release --product simpleraw
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
