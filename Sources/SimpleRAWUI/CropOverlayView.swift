@@ -124,7 +124,11 @@ struct CropBar: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            Picker("Aspect", selection: Binding(get: { session.cropAspect }, set: session.apply)) {
+            // `set: session.apply` reads better and is a method reference across an actor
+            // boundary, which makes the compiler emit a reabstraction thunk — and emitting
+            // that thunk is what killed the compiler on the runner, by name. Written as a
+            // closure there is no thunk, and nothing else changes.
+            Picker("Aspect", selection: Binding(get: { session.cropAspect }, set: { session.apply($0) })) {
                 ForEach(CropAspect.allCases) { Text($0.rawValue).tag($0) }
             }
             .frame(width: 130)
